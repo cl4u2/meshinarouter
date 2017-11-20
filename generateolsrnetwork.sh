@@ -12,9 +12,9 @@ addinitiallink() {
     ip netns add olsr${1}
     ip link add o${1}o0 type veth peer name o${1}o1
     ip link set o${1}o1 netns olsr${1}
-    ip netns exec olsr${1} ip addr add 172.31.${1}.0/16 broadcast 172.31.255.255 dev o${1}o1
+    ip netns exec olsr${1} ip addr add 172.31.${1}.0/32 brd 172.31.255.255 dev o${1}o1
     ip netns exec olsr${1} ip link set o${1}o1 up
-    ip addr add 172.31.0.${1}/16 broadcast 172.31.255.255 dev o${1}o0
+    ip addr add 172.31.0.${1}/32 brd 172.31.255.255 dev o${1}o0
     ip link set o${1}o0 up
     brctl addif $FIRSTBRIDGE o${1}o0
     echo o${1}o1
@@ -25,8 +25,8 @@ addlink() {
     ip link add o${1}${2}o0 type veth peer name o${1}${2}o1
     ip link set o${1}${2}o0 netns olsr${1}
     ip link set o${1}${2}o1 netns olsr${2}
-    ip netns exec olsr${1} ip addr add 172.31.${1}.${2}/16 broadcast 172.31.255.255 dev o${1}${2}o0
-    ip netns exec olsr${2} ip addr add 172.31.${2}.${1}/16 broadcast 172.31.255.255 dev o${1}${2}o1
+    ip netns exec olsr${1} ip addr add 172.31.${1}.${2}/32 brd 172.31.255.255 dev o${1}${2}o0
+    ip netns exec olsr${2} ip addr add 172.31.${2}.${1}/32 brd 172.31.255.255 dev o${1}${2}o1
     ip netns exec olsr${1} ip link set o${1}${2}o0 up
     ip netns exec olsr${2} ip link set o${1}${2}o1 up
     echo o${1}${2}o0
@@ -34,9 +34,18 @@ addlink() {
 
 createconfigfile() {
     # generate an olsrd configuration file
-    CFGFILENAME=/tmp/olsrd${1}.conf
+    N=$1
+    shift
+    CFGFILENAME=/tmp/olsrd${N}.conf
     cp olsrdo0.conf $CFGFILENAME
-    echo "LockFile \"/tmp/o${1}.lock\"" >> $CFGFILENAME
+    echo -n "Interface"                >> $CFGFILENAME
+    for i in $@; do
+        echo " \"$i\""                  >> $CFGFILENAME
+    done
+    echo "{"                            >> $CFGFILENAME
+    echo "}"                            >> $CFGFILENAME
+    echo ""                             >> $CFGFILENAME
+    echo "LockFile \"/tmp/o${N}.lock\"" >> $CFGFILENAME
     echo $CFGFILENAME
 }
 
@@ -64,8 +73,9 @@ done
 
 # start olsrd on all namespaces
 for i in $(seq 1 $NNODES); do
-    CFG=$(createconfigfile $i)
-    ip netns exec olsr${i} olsrd -f $CFG -d 0 -i $(listinterfaces $i)
+    IFACES=$(listinterfaces $i)
+    CFG=$(createconfigfile $i $IFACES)
+    ip netns exec olsr${i} olsrd -f $CFG -d 0 
 done
 
 # start olsrd in the current namespace
