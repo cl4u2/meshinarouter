@@ -10,11 +10,8 @@ FIRSTBRIDGE=${3:-br0}
 addinitiallink() {
     brctl addbr br${1}
     ip link set br${1} up
-    ip link add o${1}o0 type veth peer name o${1}o1
-    ip link set o${1}o0 up
-    ip link set o${1}o1 up
-    brctl addif br${1} o${1}o1
-    echo o${1}o0
+    brctl setageing br${1} 0
+    echo br${1}
 }
 
 addlink() {
@@ -29,6 +26,7 @@ createconfigfile() {
     CFGFILENAME=/tmp/olsrd${1}.conf
     cp olsrdo0.conf $CFGFILENAME
     echo "LockFile \"/tmp/o${1}.lock\"" >> $CFGFILENAME
+    echo "RtTable $1" >> $CFGFILENAME
     echo $CFGFILENAME
 }
 
@@ -39,6 +37,7 @@ doprob() {
 
 for i in $(seq 1 $NNODES); do
     OIF=$(addinitiallink ${i})
+    ip addr add 172.31.0.${i}/32 broadcast 172.31.0.255 dev $OIF
     # link to $FIRSTBRIDGE
     addlink ${i}0 ${i} 0
     for j in $(seq 1 $i); do
@@ -50,7 +49,6 @@ for i in $(seq 1 $NNODES); do
         fi
     done
     CFG=$(createconfigfile $i)
-    ip addr add 172.31.0.${i}/32 broadcast 172.31.0.255 dev $OIF
     olsrd -f $CFG -d 0 -i $OIF 
 done
 
