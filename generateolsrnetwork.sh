@@ -37,7 +37,7 @@ doprob() {
 
 for i in $(seq 1 $NNODES); do
     OIF=$(addinitiallink ${i})
-    ip addr add 172.31.0.${i}/32 broadcast 172.31.0.255 dev $OIF
+    ip addr add fdcc:cccc:cccc::${i}/128 dev $OIF
     # link to $FIRSTBRIDGE
     addlink ${i}0 ${i} 0
     for j in $(seq 1 $i); do
@@ -49,7 +49,7 @@ for i in $(seq 1 $NNODES); do
         fi
     done
     CFG=$(createconfigfile $i)
-    olsrd -f $CFG -d 0 -i $OIF 
+    olsrd -f $CFG -d 0 -i $OIF -ipv6 -multi ff02::2 
 done
 
 
