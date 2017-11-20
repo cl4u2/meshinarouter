@@ -7,7 +7,7 @@ NNODES=${1:-5}
 killall olsrd
 
 for i in $(seq 1 $NNODES); do
-    ip link del br${i}
+    ip netns del olsr${1}
 done
 
 ip link show | grep ': o' | awk '{print $2}' | awk -F'@' '{print $1}' | while read line; do
