@@ -12,7 +12,7 @@ addinitiallink() {
     ip netns add olsr${1}
     ip link add o${1}o0 type veth peer name o${1}o1
     ip link set o${1}o1 netns olsr${1}
-    ip netns exec olsr${1} ip addr add 172.31.${1}.0/32 brd 172.31.255.255 dev o${1}o1
+    ip netns exec olsr${1} ip addr add 172.31.${1}.100/32 brd 172.31.255.255 dev o${1}o1
     ip netns exec olsr${1} ip link set o${1}o1 up
     ip addr add 172.31.0.${1}/32 brd 172.31.255.255 dev o${1}o0
     ip link set o${1}o0 up
@@ -38,7 +38,7 @@ createconfigfile() {
     shift
     CFGFILENAME=/tmp/olsrd${N}.conf
     cp olsrdo0.conf $CFGFILENAME
-    echo -n "Interface"                >> $CFGFILENAME
+    echo -n "Interface"                 >> $CFGFILENAME
     for i in $@; do
         echo " \"$i\""                  >> $CFGFILENAME
     done
@@ -79,10 +79,10 @@ for i in $(seq 1 $NNODES); do
 done
 
 # start olsrd in the current namespace
-CFG=$(createconfigfile 0)
 IFACES=""
 for i in $(seq 1 $NNODES); do
     IFACES="o${i}o0 $IFACES"
 done
-olsrd -f $CFG -d 1 -i $IFACES
+CFG=$(createconfigfile 0 $IFACES)
+olsrd -f $CFG -d 9 
 
