@@ -5,18 +5,19 @@ set -x
 
 NNODES=${1:-5}
 LPROB=${2:-0} # /10000
-FIRSTBRIDGE=${3:-br0}
 
 addinitiallink() {
     # add the first veth from the main netns to a newly created ns
     ip netns add olsr${1}
+	ip netns exec olsr${1} ip addr add 127.0.0.1 dev lo
+	ip netns exec olsr${1} ip link set lo up
     ip link add o${1}o0 type veth peer name o${1}o1
+    ip link set o${1}o0 netns olsr0
     ip link set o${1}o1 netns olsr${1}
+    ip netns exec olsr0    ip addr add 172.31.0.${1}/32   brd 172.31.255.255 dev o${1}o0
+    ip netns exec olsr0    ip link set o${1}o0 up
     ip netns exec olsr${1} ip addr add 172.31.${1}.100/32 brd 172.31.255.255 dev o${1}o1
     ip netns exec olsr${1} ip link set o${1}o1 up
-    ip addr add 172.31.0.${1}/32 brd 172.31.255.255 dev o${1}o0
-    ip link set o${1}o0 up
-    brctl addif $FIRSTBRIDGE o${1}o0
     echo o${1}o1
 }
 
@@ -59,6 +60,11 @@ doprob() {
     [ $n -lt $LPROB ]
 }
 
+
+ip netns add olsr0
+ip netns exec olsr0 ip addr add 127.0.0.1 dev lo
+ip netns exec olsr0 ip link set lo up
+
 for i in $(seq 1 $NNODES); do
     OIF=$(addinitiallink ${i})
     for j in $(seq 1 $i); do
@@ -84,5 +90,5 @@ for i in $(seq 1 $NNODES); do
     IFACES="o${i}o0 $IFACES"
 done
 CFG=$(createconfigfile 0 $IFACES)
-olsrd -f $CFG -d 9 
+ip netns exec olsr0 olsrd -f $CFG -d 1 
 
