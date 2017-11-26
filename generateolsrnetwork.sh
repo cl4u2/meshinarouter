@@ -41,9 +41,18 @@ createconfigfile() {
     cp olsrdo0.conf $CFGFILENAME
     echo -n "Interface"                 >> $CFGFILENAME
     for i in $@; do
-        echo " \"$i\""                  >> $CFGFILENAME
+        echo -n " \"$i\""                  >> $CFGFILENAME
     done
+    echo ""                             >> $CFGFILENAME
     echo "{"                            >> $CFGFILENAME
+    echo " HelloInterval       2.0"     >> $CFGFILENAME
+    echo " HelloValidityTime   20.0"     >> $CFGFILENAME
+    echo " TcInterval          5.0"     >> $CFGFILENAME
+    echo " TcValidityTime      300.0"     >> $CFGFILENAME
+    echo " MidInterval         5.0"     >> $CFGFILENAME
+    echo " MidValidityTime     300.0"     >> $CFGFILENAME
+    echo " HnaInterval         5.0"     >> $CFGFILENAME
+    echo " HnaValidityTime     300.0"     >> $CFGFILENAME
     echo "}"                            >> $CFGFILENAME
     echo ""                             >> $CFGFILENAME
     echo "LockFile \"/tmp/o${N}.lock\"" >> $CFGFILENAME
@@ -64,6 +73,12 @@ doprob() {
 ip netns add olsr0
 ip netns exec olsr0 ip addr add 127.0.0.1 dev lo
 ip netns exec olsr0 ip link set lo up
+ip link add veth0 type veth peer name veth1
+ip link set veth1 netns olsr0
+ip netns exec olsr0 ip addr add 172.31.0.200/32 brd 255.255.255.255 dev veth1
+ip netns exec olsr0 ip link set veth1 up
+ip link set veth0 up
+brctl addif br-lan veth0
 
 for i in $(seq 1 $NNODES); do
     OIF=$(addinitiallink ${i})
@@ -89,6 +104,6 @@ IFACES=""
 for i in $(seq 1 $NNODES); do
     IFACES="o${i}o0 $IFACES"
 done
-CFG=$(createconfigfile 0 $IFACES)
+CFG=$(createconfigfile 0 "$IFACES veth1")
 ip netns exec olsr0 olsrd -f $CFG -d 1 
 

@@ -14,5 +14,8 @@ ip link show | grep ': o' | awk '{print $2}' | awk -F'@' '{print $1}' | while re
     ip link del $line
 done
 
+ip link del veth0
+ip link del veth1
+
 
 
