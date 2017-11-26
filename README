@@ -2,6 +2,7 @@ Mesh in a router
 ----------------
 
 This script emulates an (OLSR) network in a Linux-based (e.g. OpenWRT/LEDE)
-router. The router's kernel must have the Linux network namespaces enabled.
+router. The router's kernel must have the Linux network namespaces enabled,
+full blown iproute2 and bash.
 
 
