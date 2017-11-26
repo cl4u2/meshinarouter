@@ -7,10 +7,10 @@ NNODES=${1:-5}
 LPROB=${2:-0} # /10000
 
 addinitiallink() {
-    # add the first veth from the main netns to a newly created ns
+    # add the first veth from the first netns to a newly created ns
     ip netns add olsr${1}
-	ip netns exec olsr${1} ip addr add 127.0.0.1 dev lo
-	ip netns exec olsr${1} ip link set lo up
+    ip netns exec olsr${1} ip addr add 127.0.0.1 dev lo
+    ip netns exec olsr${1} ip link set lo up
     ip link add o${1}o0 type veth peer name o${1}o1
     ip link set o${1}o0 netns olsr0
     ip link set o${1}o1 netns olsr${1}
@@ -41,18 +41,18 @@ createconfigfile() {
     cp olsrdo0.conf $CFGFILENAME
     echo -n "Interface"                 >> $CFGFILENAME
     for i in $@; do
-        echo -n " \"$i\""                  >> $CFGFILENAME
+        echo -n " \"$i\""               >> $CFGFILENAME
     done
     echo ""                             >> $CFGFILENAME
     echo "{"                            >> $CFGFILENAME
     echo " HelloInterval       2.0"     >> $CFGFILENAME
-    echo " HelloValidityTime   20.0"     >> $CFGFILENAME
+    echo " HelloValidityTime   20.0"    >> $CFGFILENAME
     echo " TcInterval          5.0"     >> $CFGFILENAME
-    echo " TcValidityTime      300.0"     >> $CFGFILENAME
+    echo " TcValidityTime      300.0"   >> $CFGFILENAME
     echo " MidInterval         5.0"     >> $CFGFILENAME
-    echo " MidValidityTime     300.0"     >> $CFGFILENAME
+    echo " MidValidityTime     300.0"   >> $CFGFILENAME
     echo " HnaInterval         5.0"     >> $CFGFILENAME
-    echo " HnaValidityTime     300.0"     >> $CFGFILENAME
+    echo " HnaValidityTime     300.0"   >> $CFGFILENAME
     echo "}"                            >> $CFGFILENAME
     echo ""                             >> $CFGFILENAME
     echo "LockFile \"/tmp/o${N}.lock\"" >> $CFGFILENAME
@@ -70,6 +70,7 @@ doprob() {
 }
 
 
+# initialize the first namespace
 ip netns add olsr0
 ip netns exec olsr0 ip addr add 127.0.0.1 dev lo
 ip netns exec olsr0 ip link set lo up
@@ -80,6 +81,7 @@ ip netns exec olsr0 ip link set veth1 up
 ip link set veth0 up
 brctl addif br-lan veth0
 
+# create the links
 for i in $(seq 1 $NNODES); do
     OIF=$(addinitiallink ${i})
     for j in $(seq 1 $i); do
@@ -99,7 +101,7 @@ for i in $(seq 1 $NNODES); do
     ip netns exec olsr${i} olsrd -f $CFG -d 0 
 done
 
-# start olsrd in the current namespace
+# start olsrd in the first namespace
 IFACES=""
 for i in $(seq 1 $NNODES); do
     IFACES="o${i}o0 $IFACES"
