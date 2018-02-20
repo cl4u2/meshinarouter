@@ -17,5 +17,8 @@ done
 ip link del veth0
 ip link del veth1
 
+ip netns del antenna1
+ip netns del antenna2
+
 
 

@@ -32,10 +32,7 @@ addinitiallink() {
     ip netns exec olsr${1} ip addr add 127.0.0.1 dev lo
     ip netns exec olsr${1} ip link set lo up
     ip link add o${1}o0 type veth peer name o${1}o1
-    ip link set o${1}o0 netns olsr0
     ip link set o${1}o1 netns olsr${1}
-    ip netns exec olsr0    ip addr add 172.31.0.${1}/32   brd 172.31.255.255 dev o${1}o0
-    ip netns exec olsr0    ip link set o${1}o0 up
     ip netns exec olsr${1} ip addr add 172.31.${1}.100/32 brd 172.31.255.255 dev o${1}o1
     ip netns exec olsr${1} ip link set o${1}o1 up
     echo o${1}o1
@@ -89,17 +86,28 @@ doprob() {
     [ $n -lt $LPROB ]
 }
 
+createantenna () {
+    i=${1} # antenna number
+    j=${2} # olsr node to connect to
+    vlanid=${3}
 
-# initialize the first namespace
-ip netns add olsr0
-ip netns exec olsr0 ip addr add 127.0.0.1 dev lo
-ip netns exec olsr0 ip link set lo up
-ip link add veth0 type veth peer name veth1
-ip link set veth1 netns olsr0
-ip netns exec olsr0 ip addr add 172.31.0.200/32 brd 255.255.255.255 dev veth1
-ip netns exec olsr0 ip link set veth1 up
-ip link set veth0 up
-brctl addif br-lan veth0
+    antennans=antenna${i}
+    ip netns add $antennans
+    ip link set o${j}o0 netns $antennans
+    ip link add a${i}v0 type veth peer name a${i}v1
+    ip link set a${i}v1 netns $antennans
+    ip netns exec $antennans ip link add link a${i}v1 vlan${vlanid} type vlan id $vlanid
+    ip netns exec $antennans brctl addbr br0
+    ip netns exec $antennans brctl addif br0 o${j}o0
+    ip netns exec $antennans brctl addif br0 vlan${vlanid}
+    ip netns exec $antennans ip link set o${j}o0 up
+    ip netns exec $antennans ip link set a${i}v1 up
+    ip netns exec $antennans ip link set vlan${vlanid} up
+    ip netns exec $antennans ip link set br0 up
+    ip link set a${i}v0 up
+    brctl addif br0 a${i}v0
+}
+
 
 # create the links
 for i in $(seq 1 $NNODES); do
@@ -121,11 +129,8 @@ for i in $(seq 1 $NNODES); do
     ip netns exec olsr${i} olsrd -f $CFG -d 0 
 done
 
-# start olsrd in the first namespace
-IFACES=""
-for i in $(seq 1 $NNODES); do
-    IFACES="o${i}o0 $IFACES"
-done
-CFG=$(createconfigfile 0 "$IFACES veth1")
-ip netns exec olsr0 olsrd -f $CFG -d 1 
+# emulate the antennae
+createantenna 1 1 10
+createantenna 2 $NNODES 20
+
 
