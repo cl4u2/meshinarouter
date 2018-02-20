@@ -108,6 +108,10 @@ createantenna () {
     brctl addif br0 a${i}v0
 }
 
+# initialize br0
+brctl addbr br0 || true
+brctl addif br0 eth0 || true
+ip link set br0 up
 
 # create the links
 for i in $(seq 1 $NNODES); do
